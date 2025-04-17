@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pokémon Guess Game</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f2f2f2; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+    .card img { max-height: 120px; display: block; margin: auto 10px auto 0; }
+    .tag-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; }
+    .tag-list li { background: #e0e0e0; display: inline-block; padding: 5px 10px; margin: 4px; border-radius: 8px; font-size: 14px; }
+    .tag-list li.match { background: #a3eaa3; font-weight: bold; }
+    .guess-input { width: 100%; padding: 10px; font-size: 16px; }
+    .submit-btn { padding: 10px 20px; font-size: 16px; margin-top: 10px; }
+    .guess-entry { border-top: 1px solid #ccc; padding-top: 15px; margin-top: 15px; display: flex; align-items: flex-start; }
+    .tag-column { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; }
+    .autocomplete-list { margin-top: 5px; background: white; border: 1px solid #ccc; max-height: 120px; overflow-y: auto; position: absolute; z-index: 10; width: calc(100% - 42px); }
+    .autocomplete-item { padding: 5px 10px; cursor: pointer; }
+    .autocomplete-item:hover { background-color: #eee; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Pokémon Guess Game</h2>
+    <div style="position: relative;">
+      <input id="guess" class="guess-input" placeholder="Enter your guess (e.g. Pikachu)" oninput="showSuggestions()">
+      <div id="suggestions" class="autocomplete-list"></div>
+    </div>
+    <button class="submit-btn" onclick="submitGuess()">Guess</button>
+    <div id="result"></div>
+    <div id="history"></div>
+    <div id="reveal"></div>
+  </div>
+
+  <script>
+    let pokemonData = [];
+    let target = null;
+    let guessCount = 0;
+    const maxGuesses = 10;
+    const historyDiv = document.getElementById("history");
+    const revealDiv = document.getElementById("reveal");
+    const guessInput = document.getElementById("guess");
+    const suggestionDiv = document.getElementById("suggestions");
+
+    fetch('pokemon_question_bank.json')
+      .then(res => res.json())
+      .then(data => {
+        pokemonData = data;
+        target = pokemonData[Math.floor(Math.random() * pokemonData.length)];
+      });
+
+    function normalize(str) {
+      return str.normalize("NFKD").replace(/–/g, "-").toLowerCase();
+    }
+
+    function showSuggestions() {
+      const input = normalize(guessInput.value);
+      suggestionDiv.innerHTML = "";
+      if (input.length < 2) return;
+      const matches = pokemonData.filter(p => normalize(p.name).includes(input)).slice(0, 5);
+      matches.forEach(p => {
+        const item = document.createElement("div");
+        item.className = "autocomplete-item";
+        item.textContent = p.name;
+        item.onclick = () => {
+          guessInput.value = p.name;
+          suggestionDiv.innerHTML = "";
+        };
+        suggestionDiv.appendChild(item);
+      });
+    }
+
+    function submitGuess() {
+      if (guessCount >= maxGuesses) return;
+
+      const guessName = guessInput.value.trim();
+      const guess = pokemonData.find(p => normalize(p.name) === normalize(guessName));
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = '';
+
+      if (!guess) {
+        resultDiv.innerHTML = `<p style='color:red'>Not found: ${guessName}</p>`;
+        return;
+      }
+
+      const targetTags = new Set(target.tags);
+      const isMatch = tag => targetTags.has(tag);
+
+      const types = guess.tags.filter(tag => tag.startsWith('Type:'));
+      const stats = guess.tags.filter(tag => tag.startsWith('Base'));
+      const others = guess.tags.filter(tag => !tag.startsWith('Type:') && !tag.startsWith('Base'));
+
+      const usageComparison = target.usage > guess.usage ? 'higher' : 'lower';
+
+      const guessHtml = `
+        <div class="guess-entry">
+          <img src="${guess.sprite_small}" alt="${guess.name}">
+          <div class="tag-column">
+            <h3>${guess.name}</h3>
+            <p>Usage: ${guess.usage}% (Target is ${usageComparison})</p>
+            <ul class='tag-list'>${types.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
+            <ul class='tag-list'>${stats.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
+            <ul class='tag-list'>${others.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
+          </div>
+        </div>
+      `;
+
+      historyDiv.innerHTML += guessHtml;
+      guessCount++;
+
+      if (guessCount >= maxGuesses) {
+        resultDiv.innerHTML = `<p style='color:blue'>You've reached the maximum number of guesses!</p>`;
+        revealTarget();
+      }
+    }
+
+    function revealTarget() {
+      const revealHtml = `
+        <div class="guess-entry">
+          <h3>Answer: ${target.name}</h3>
+          <img src="${target.sprite_large}" alt="${target.name}">
+          <ul class='tag-list'>${target.tags.map(tag => `<li>${tag}</li>`).join('')}</ul>
+        </div>
+      `;
+      revealDiv.innerHTML = revealHtml;
+    }
+  </script>
+</body>
+</html>
