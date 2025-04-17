@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>Pokémon Guess Game</title>
+  <title>宝可梦猜猜乐</title>
   <style>
     body { font-family: sans-serif; background-color: #f2f2f2; padding: 20px; }
     .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
@@ -17,22 +17,43 @@
     .autocomplete-list { margin-top: 5px; background: white; border: 1px solid #ccc; max-height: 120px; overflow-y: auto; position: absolute; z-index: 10; width: calc(100% - 42px); }
     .autocomplete-item { padding: 5px 10px; cursor: pointer; }
     .autocomplete-item:hover { background-color: #eee; }
+    .modal {
+      display: none; position: fixed; z-index: 1000; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5);
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: white; padding: 20px; border-radius: 10px; max-width: 600px; width: 90%; text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Pokémon Guess Game</h2>
+    <h2>宝可梦猜猜乐</h2>
+    <label for="range">选择使用率范围：</label>
+    <select id="range" onchange="setTarget()">
+      <option value="50">前 50 名</option>
+      <option value="100" selected>前 100 名</option>
+      <option value="300">前 300 名</option>
+      <option value="700">前 700 名</option>
+      <option value="all">所有宝可梦</option>
+    </select>
     <div style="position: relative;">
-      <input id="guess" class="guess-input" placeholder="Enter your guess (e.g. Pikachu)" oninput="showSuggestions()">
+      <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu）" oninput="showSuggestions()">
       <div id="suggestions" class="autocomplete-list"></div>
     </div>
-    <button class="submit-btn" onclick="submitGuess()">Guess</button>
+    <button class="submit-btn" onclick="submitGuess()">猜！</button>
     <div id="result"></div>
     <div id="history"></div>
     <div id="reveal"></div>
   </div>
 
+  <div id="modal" class="modal">
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+
   <script>
+    let fullData = [];
     let pokemonData = [];
     let target = null;
     let guessCount = 0;
@@ -41,13 +62,29 @@
     const revealDiv = document.getElementById("reveal");
     const guessInput = document.getElementById("guess");
     const suggestionDiv = document.getElementById("suggestions");
+    const modal = document.getElementById("modal");
+    const modalContent = document.getElementById("modal-content");
 
     fetch('pokemon_question_bank.json')
       .then(res => res.json())
       .then(data => {
-        pokemonData = data;
-        target = pokemonData[Math.floor(Math.random() * pokemonData.length)];
+        fullData = data.sort((a, b) => b.usage - a.usage);
+        setTarget();
       });
+
+    function setTarget() {
+      const range = document.getElementById("range").value;
+      if (range === "all") {
+        pokemonData = fullData;
+      } else {
+        pokemonData = fullData.slice(0, parseInt(range));
+      }
+      target = pokemonData[Math.floor(Math.random() * pokemonData.length)];
+      guessCount = 0;
+      historyDiv.innerHTML = "";
+      revealDiv.innerHTML = "";
+      modal.style.display = "none";
+    }
 
     function normalize(str) {
       return str.normalize("NFKD").replace(/–/g, "-").toLowerCase();
@@ -57,7 +94,7 @@
       const input = normalize(guessInput.value);
       suggestionDiv.innerHTML = "";
       if (input.length < 2) return;
-      const matches = pokemonData.filter(p => normalize(p.name).includes(input)).slice(0, 5);
+      const matches = fullData.filter(p => normalize(p.name).includes(input)).slice(0, 5);
       matches.forEach(p => {
         const item = document.createElement("div");
         item.className = "autocomplete-item";
@@ -74,12 +111,12 @@
       if (guessCount >= maxGuesses) return;
 
       const guessName = guessInput.value.trim();
-      const guess = pokemonData.find(p => normalize(p.name) === normalize(guessName));
+      const guess = fullData.find(p => normalize(p.name) === normalize(guessName));
       const resultDiv = document.getElementById("result");
       resultDiv.innerHTML = '';
 
       if (!guess) {
-        resultDiv.innerHTML = `<p style='color:red'>Not found: ${guessName}</p>`;
+        resultDiv.innerHTML = `<p style='color:red'>未找到：${guessName}</p>`;
         return;
       }
 
@@ -90,14 +127,14 @@
       const stats = guess.tags.filter(tag => tag.startsWith('Base'));
       const others = guess.tags.filter(tag => !tag.startsWith('Type:') && !tag.startsWith('Base'));
 
-      const usageComparison = target.usage > guess.usage ? 'higher' : 'lower';
+      const usageComparison = target.usage > guess.usage ? '更高' : '更低';
 
       const guessHtml = `
         <div class="guess-entry">
           <img src="${guess.sprite_small}" alt="${guess.name}">
           <div class="tag-column">
             <h3>${guess.name}</h3>
-            <p>Usage: ${guess.usage}% (Target is ${usageComparison})</p>
+            <p>使用率：${guess.usage}%（目标宝可梦使用率${usageComparison}）</p>
             <ul class='tag-list'>${types.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
             <ul class='tag-list'>${stats.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
             <ul class='tag-list'>${others.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
@@ -108,8 +145,12 @@
       historyDiv.innerHTML += guessHtml;
       guessCount++;
 
+      if (guess.name === target.name) {
+        showVictoryModal();
+      }
+
       if (guessCount >= maxGuesses) {
-        resultDiv.innerHTML = `<p style='color:blue'>You've reached the maximum number of guesses!</p>`;
+        resultDiv.innerHTML = `<p style='color:blue'>你已达到最多猜测次数！</p>`;
         revealTarget();
       }
     }
@@ -117,12 +158,23 @@
     function revealTarget() {
       const revealHtml = `
         <div class="guess-entry">
-          <h3>Answer: ${target.name}</h3>
+          <h3>答案是：${target.name}</h3>
           <img src="${target.sprite_large}" alt="${target.name}">
           <ul class='tag-list'>${target.tags.map(tag => `<li>${tag}</li>`).join('')}</ul>
         </div>
       `;
       revealDiv.innerHTML = revealHtml;
+    }
+
+    function showVictoryModal() {
+      modalContent.innerHTML = `
+        <h2>🎉 恭喜你猜对了！答案是 ${target.name}</h2>
+        <img src="${target.sprite_large}" alt="${target.name}" style="max-height: 120px;">
+        <p>所有标签：</p>
+        <ul class='tag-list' style="justify-content:center">${target.tags.map(tag => `<li>${tag}</li>`).join('')}</ul>
+        <button onclick="setTarget()" style="margin-top:20px">重新开始游戏</button>
+      `;
+      modal.style.display = "flex";
     }
   </script>
 </body>
