@@ -30,6 +30,7 @@
 <body>
   <div class="card">
     <h2>宝可梦猜猜乐</h2>
+
     <label for="range">选择使用率范围：</label>
     <select id="range" onchange="setTarget()">
       <option value="50">前 50 名</option>
@@ -38,8 +39,17 @@
       <option value="700">前 700 名</option>
       <option value="all">所有宝可梦</option>
     </select>
-    <div style="position: relative;">
-      <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu）" oninput="showSuggestions()">
+
+    <label for="guessLimit" style="margin-left: 20px;">猜测次数：</label>
+    <select id="guessLimit" onchange="updateGuessLimit()">
+      <option value="5">5次</option>
+      <option value="10" selected>10次</option>
+      <option value="15">15次</option>
+      <option value="20">20次</option>
+    </select>
+
+    <div style="position: relative; margin-top: 10px;">
+      <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu 或 皮卡丘）" oninput="showSuggestions()">
       <div id="suggestions" class="autocomplete-list"></div>
     </div>
     <button class="submit-btn" onclick="submitGuess()">猜！</button>
@@ -53,37 +63,56 @@
   </div>
 
   <script>
-    let fullData = [];
-    let pokemonData = [];
-    let target = null;
-    let guessCount = 0;
-    const maxGuesses = 10;
+    let fullData = [], pokemonData = [], target = null;
+    let guessCount = 0, maxGuesses = 10;
+    const guessInput = document.getElementById("guess");
     const historyDiv = document.getElementById("history");
     const revealDiv = document.getElementById("reveal");
-    const guessInput = document.getElementById("guess");
     const suggestionDiv = document.getElementById("suggestions");
     const modal = document.getElementById("modal");
     const modalContent = document.getElementById("modal-content");
 
-    fetch('pokemon_question_bank.json')
-      .then(res => res.json())
-      .then(data => {
-        fullData = data.sort((a, b) => b.usage - a.usage);
-        setTarget();
-      });
+    let moveDict = {}, abilityDict = {}, nameDict = {}, itemDict = {};
+
+    function reverseDict(dict) {
+      const result = {};
+      for (const [cn, en] of Object.entries(dict)) {
+        result[en] = cn;
+      }
+      return result;
+    }
+
+    async function loadDictionaries() {
+      const moveRaw = await fetch("move_cn_en.json").then(res => res.json());
+      const abilityRaw = await fetch("ability_cn_en.json").then(res => res.json());
+      const nameRaw = await fetch("cn_en_dict.json").then(res => res.json());
+      const itemRaw = await fetch("item_cn_en.json").then(res => res.json());
+
+      moveDict = reverseDict(moveRaw);
+      abilityDict = reverseDict(abilityRaw);
+      nameDict = reverseDict(nameRaw);
+      itemDict = itemRaw;
+
+      const data = await fetch("pokemon_question_bank.json").then(res => res.json());
+      fullData = data.sort((a, b) => b.usage - a.usage);
+      setTarget();
+    }
+
+    function updateGuessLimit() {
+      const value = document.getElementById("guessLimit").value;
+      maxGuesses = parseInt(value);
+      setTarget();
+    }
 
     function setTarget() {
       const range = document.getElementById("range").value;
-      if (range === "all") {
-        pokemonData = fullData;
-      } else {
-        pokemonData = fullData.slice(0, parseInt(range));
-      }
+      pokemonData = (range === "all") ? fullData : fullData.slice(0, parseInt(range));
       target = pokemonData[Math.floor(Math.random() * pokemonData.length)];
       guessCount = 0;
       historyDiv.innerHTML = "";
       revealDiv.innerHTML = "";
       modal.style.display = "none";
+      guessInput.value = "";
     }
 
     function normalize(str) {
@@ -91,20 +120,62 @@
     }
 
     function showSuggestions() {
-      const input = normalize(guessInput.value);
+      const input = normalize(guessInput.value.trim());
       suggestionDiv.innerHTML = "";
-      if (input.length < 2) return;
-      const matches = fullData.filter(p => normalize(p.name).includes(input)).slice(0, 5);
-      matches.forEach(p => {
+      if (input.length < 1) return;
+
+      const matches = fullData.filter(p => {
+        const en = normalize(p.name);
+        const cn = normalize(nameDict[p.name] || "");
+        return en.includes(input) || cn.includes(input);
+      }).slice(0, 6);
+
+      for (const p of matches) {
+        const display = nameDict[p.name] ? `${nameDict[p.name]} (${p.name})` : p.name;
         const item = document.createElement("div");
         item.className = "autocomplete-item";
-        item.textContent = p.name;
+        item.textContent = display;
         item.onclick = () => {
           guessInput.value = p.name;
           suggestionDiv.innerHTML = "";
         };
         suggestionDiv.appendChild(item);
-      });
+      }
+    }
+
+    const prefixMap = {
+      "Move": "招式", "Ability": "特性", "Item": "道具", "Tera": "太晶属性",
+      "Teammate": "队友", "Counter": "克制", "Spread": "性格", "Type": "属性"
+    };
+
+    const teraTranslation = {
+      "Water": "水", "Fire": "火", "Grass": "草", "Ghost": "幽灵", "Normal": "一般",
+      "Dark": "恶", "Fairy": "妖精", "Steel": "钢", "Electric": "电", "Flying": "飞行",
+      "Ground": "地面", "Fighting": "格斗", "Psychic": "超能力", "Bug": "虫", "Rock": "岩石",
+      "Poison": "毒", "Ice": "冰", "Dragon": "龙"
+    };
+
+    const typeTranslation = teraTranslation;
+
+    function translate(tag) {
+      const parts = tag.split(": ");
+      if (parts.length < 2) return tag;
+      const [prefix, value] = parts;
+      let translated = value;
+      if (prefix === "Move" && moveDict[value]) translated = moveDict[value];
+      if (prefix === "Ability" && abilityDict[value]) translated = abilityDict[value];
+      if (prefix === "Teammate" && nameDict[value]) translated = nameDict[value];
+      if (prefix === "Counter" && nameDict[value]) translated = nameDict[value];
+      if (prefix === "Item" && itemDict[value]) translated = itemDict[value];
+      if (prefix === "Tera" && teraTranslation[value]) translated = teraTranslation[value];
+      if (prefix === "Spread") translated = value;
+      if (prefix === "Type") translated = typeTranslation[value] || value;
+      if (prefix.startsWith("Base")) return tag.replace("Base", "种族值：");
+      return `${prefixMap[prefix] || prefix}：${translated}`;
+    }
+
+    function translateList(tags, matcher) {
+      return tags.map(tag => `<li class="${matcher(tag) ? 'match' : ''}">${translate(tag)}</li>`).join('');
     }
 
     function submitGuess() {
@@ -135,47 +206,40 @@
           <div class="tag-column">
             <h3>${guess.name}</h3>
             <p>使用率：${guess.usage}%（目标宝可梦使用率${usageComparison}）</p>
-            <ul class='tag-list'>${types.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
-            <ul class='tag-list'>${stats.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
-            <ul class='tag-list'>${others.map(tag => `<li class='${isMatch(tag) ? "match" : ""}'>${tag}</li>`).join('')}</ul>
+            <ul class='tag-list'>${translateList(types, isMatch)}</ul>
+            <ul class='tag-list'>${translateList(stats, isMatch)}</ul>
+            <ul class='tag-list'>${translateList(others, isMatch)}</ul>
           </div>
         </div>
       `;
-
       historyDiv.innerHTML += guessHtml;
       guessCount++;
 
-      if (guess.name === target.name) {
-        showVictoryModal();
-      }
-
-      if (guessCount >= maxGuesses) {
-        resultDiv.innerHTML = `<p style='color:blue'>你已达到最多猜测次数！</p>`;
-        revealTarget();
+      if (normalize(guess.name) === normalize(target.name)) {
+        showModal(true);
+      } else if (guessCount >= maxGuesses) {
+        showModal(false);
       }
     }
 
-    function revealTarget() {
-      const revealHtml = `
-        <div class="guess-entry">
-          <h3>答案是：${target.name}</h3>
-          <img src="${target.sprite_large}" alt="${target.name}">
-          <ul class='tag-list'>${target.tags.map(tag => `<li>${tag}</li>`).join('')}</ul>
-        </div>
-      `;
-      revealDiv.innerHTML = revealHtml;
-    }
+    function showModal(isCorrect) {
+      const title = isCorrect
+        ? `🎉 恭喜你猜对了！答案是 ${target.name}`
+        : `❌ 很遗憾，你未猜中，答案是 ${target.name}`;
 
-    function showVictoryModal() {
       modalContent.innerHTML = `
-        <h2>🎉 恭喜你猜对了！答案是 ${target.name}</h2>
+        <h2>${title}</h2>
         <img src="${target.sprite_large}" alt="${target.name}" style="max-height: 120px;">
         <p>所有标签：</p>
-        <ul class='tag-list' style="justify-content:center">${target.tags.map(tag => `<li>${tag}</li>`).join('')}</ul>
-        <button onclick="setTarget()" style="margin-top:20px">重新开始游戏</button>
+        <ul class='tag-list' style="justify-content:center">
+          ${target.tags.map(tag => `<li>${translate(tag)}</li>`).join('')}
+        </ul>
+        <button onclick="setTarget()" style="margin-top: 20px;">再来一次</button>
       `;
       modal.style.display = "flex";
     }
+
+    window.onload = loadDictionaries;
   </script>
 </body>
 </html>
