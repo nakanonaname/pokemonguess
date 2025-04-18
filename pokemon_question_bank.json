@@ -357,7 +357,16 @@
       "Tera: Dragon",
       "Teammate: Urshifu-Rapid-Strike",
       "Teammate: Calyrex-Ice",
-      "Teammate: Calyrex-Shadow"
+      "Teammate: Calyrex-Shadow",
+      "Type: Psychic",
+      "Type: Normal",
+      "Base Hp: 70",
+      "Base Attack: 55",
+      "Base Defense: 65",
+      "Base Special attack: 95",
+      "Base Special defense: 105",
+      "Base Speed: 85",
+      "Egg Group: Fairy"
     ]
   },
   {
@@ -439,8 +448,19 @@
       "Tera: Poison",
       "Teammate: Urshifu-Rapid-Strike",
       "Teammate: Calyrex-Ice",
-      "Teammate: Raging Bolt"
-    ]
+      "Teammate: Raging Bolt",
+      "Type: Ground",
+      "Type: Flying",
+      "Base Hp: 89",
+      "Base Attack: 125",
+      "Base Defense: 90",
+      "Base Special attack: 115",
+      "Base Special defense: 80",
+      "Base Speed: 101",
+      "Egg Group: No-eggs"
+    ],
+    "sprite_small": "https://media.52poke.com/wiki/b/b7/Spr_6x_645.png",
+    "sprite_large": "https://s1.52poke.com/wiki/thumb/b/bb/645Landorus.png/300px-645Landorus.png"
   },
   {
     "name": "Chien-Pao",
@@ -520,8 +540,19 @@
       "Tera: Grass",
       "Teammate: Calyrex-Ice",
       "Teammate: Farigiraf",
-      "Teammate: Whimsicott"
-    ]
+      "Teammate: Whimsicott",
+      "Type: Fighting",
+      "Type: Dark",
+      "Base Hp: 100",
+      "Base Attack: 130",
+      "Base Defense: 100",
+      "Base Special attack: 63",
+      "Base Special defense: 60",
+      "Base Speed: 97",
+      "Egg Group: No-eggs"
+    ],
+    "sprite_small": "https://media.52poke.com/wiki/c/c2/Spr_8s_892.png",
+    "sprite_large": "https://s1.52poke.com/wiki/thumb/e/e7/892Urshifu-Single_Strike.png/300px-892Urshifu-Single_Strike.png"
   },
   {
     "name": "Koraidon",
@@ -624,7 +655,6 @@
       "Ability: Drizzle",
       "Ability: Keen Eye",
       "Ability: Rain Dish",
-      "Ability: Tera Shift",
       "Item: Focus Sash",
       "Item: Safety Goggles",
       "Item: Covert Cloak",
@@ -1100,7 +1130,16 @@
       "Tera: Steel",
       "Teammate: Dondozo",
       "Teammate: Calyrex-Shadow",
-      "Teammate: Weezing-Galar"
+      "Teammate: Weezing-Galar",
+      "Type: Dragon",
+      "Type: Water",
+      "Base Hp: 68",
+      "Base Attack: 50",
+      "Base Defense: 60",
+      "Base Special attack: 120",
+      "Base Special defense: 95",
+      "Base Speed: 82",
+      "Egg Group: Water 2"
     ]
   },
   {
