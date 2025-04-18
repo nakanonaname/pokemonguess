@@ -208,7 +208,15 @@
       "Tera: Steel",
       "Teammate: Urshifu-Rapid-Strike",
       "Teammate: Kyogre",
-      "Teammate: Landorus"
+      "Teammate: Landorus",
+      "Type: Flying",
+      "Base Hp: 79",
+      "Base Attack: 115",
+      "Base Defense: 70",
+      "Base Special attack: 125",
+      "Base Special defense: 80",
+      "Base Speed: 111",
+      "Egg Group: No-eggs"
     ]
   },
   {
