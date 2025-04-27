@@ -6,150 +6,288 @@
   <title>宝可梦猜猜乐</title>
   <style>
     body {
-      font-family: sans-serif;
-      background-color: #f2f2f2;
+      font-family: "Helvetica Neue", sans-serif;
+      background-color: #f7fafc;
       padding: 20px;
+      margin: 0;
     }
-
+  
     .card {
       background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      max-width: 800px;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      max-width: 900px;
       margin: auto;
+      overflow: hidden;
     }
-
-    .card img {
-      max-height: 120px;
-      display: block;
-      margin: auto 10px auto 0;
-    }
-
-    .tag-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .tag-list li {
-      background: #e0e0e0;
-      display: inline-block;
-      padding: 5px 10px;
-      margin: 4px;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-
-    .tag-list li.match {
-      background: #a3eaa3;
+  
+    .card h2 {
+      text-align: center;
+      font-size: 28px;
       font-weight: bold;
+      margin-bottom: 20px;
+      color: #333;
     }
-
+  
+    .card label {
+      font-size: 14px;
+      color: #666;
+      margin-right: 8px;
+    }
+  
+    select, .guess-input {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      margin-right: 12px;
+      background-color: #fff;
+      transition: border-color 0.2s;
+    }
+  
+    select:focus, .guess-input:focus {
+      border-color: #3182ce;
+      outline: none;
+    }
+  
+    /* 输入框和补全列表整体容器 */
+    #input-container {
+      position: relative;
+      width: 70%;
+      margin: 20px auto 0 auto;
+    }
+  
+    /* 输入框 */
     .guess-input {
       width: 100%;
-      padding: 10px;
+      padding: 14px 18px;
       font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background-color: white;
+      box-sizing: border-box;
+      transition: border-color 0.2s, background-color 0.2s;
     }
-
-    .submit-btn {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin-top: 10px;
+  
+    .guess-input:focus {
+      background-color: #f0f4f8;
     }
-
-    .guess-entry {
-      border-top: 1px solid #ccc;
-      padding-top: 15px;
-      margin-top: 15px;
-      display: flex;
-      align-items: flex-start;
-    }
-
-    .tag-column {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      padding-left: 10px;
-    }
-
+  
+    /* 自动补全列表 */
     .autocomplete-list {
-      margin-top: 5px;
+      position: absolute;
+      width: 100%;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
       background: white;
       border: 1px solid #ccc;
-      max-height: 120px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      z-index: 100;
       overflow-y: auto;
-      position: absolute;
-      z-index: 10;
-      width: calc(100% - 42px);
+      max-height: 180px;
+      box-sizing: border-box;
     }
-
+  
     .autocomplete-item {
-      padding: 5px 10px;
+      padding: 10px 16px;
+      font-size: 15px;
       cursor: pointer;
+      transition: background-color 0.2s;
     }
-
+  
     .autocomplete-item:hover {
-      background-color: #eee;
+      background-color: #edf2f7;
     }
-
+  
+    .options {
+      margin-top: 16px;
+      text-align: center;
+    }
+  
+    .options label {
+      margin-right: 15px;
+      font-size: 14px;
+      color: #555;
+    }
+  
+    /* 两个按钮统一布局 */
+    .action-btn {
+      flex: 1;
+      max-width: 160px;
+      padding: 12px 0;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+  
+    /* 猜按钮：蓝色 */
+    .submit-btn {
+      background-color: #3182ce;
+      color: white;
+    }
+  
+    .submit-btn:hover {
+      background-color: #2563eb;
+    }
+  
+    /* 投降按钮：浅红色 */
+    .surrender-btn {
+      background-color: #feb2b2;
+      color: #721c24;
+    }
+  
+    .surrender-btn:hover {
+      background-color: #fc8181;
+    }
+  
+    /* 猜测记录区域 */
+    .guess-entry {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 20px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+    }
+  
+    .guess-entry img {
+      max-height: 100px;
+      margin-right: 16px;
+      border-radius: 8px;
+    }
+  
+    .tag-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  
+    .tag-column h3 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+  
+    .tag-column p {
+      margin: 2px 0 10px 0;
+      font-size: 14px;
+      color: #555;
+    }
+  
+    .tag-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+  
+    .tag-list li {
+      background: #edf2f7;
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: 9999px;
+      color: #555;
+      transition: background-color 0.2s;
+    }
+  
+    .tag-list li.match {
+      background: #c6f6d5;
+      color: #22543d;
+      font-weight: bold;
+    }
+  
+    /* 弹窗 */
     .modal {
       display: none;
       position: fixed;
       z-index: 1000;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
       justify-content: center;
       align-items: center;
     }
-
+  
     .modal-content {
       background: white;
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 600px;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
       width: 90%;
       text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
-
-    .options {
-      margin-top: 10px;
+  
+    .modal-content h2 {
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+  
+    .modal-content button {
+      margin-top: 20px;
+      background-color: #38a169;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .top-options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+  
+    .modal-content button:hover {
+      background-color: #2f855a;
     }
   </style>
+  
+  
 </head>
 
 <body>
   <div class="card">
     <h2>宝可梦猜猜乐</h2>
 
-    <label for="range">选择使用率范围：</label>
-    <select id="range" onchange="setTarget()">
-      <option value="50" selected>前 50 名</option>
-      <option value="100">前 100 名</option>
-      <option value="300">前 300 名</option>
-      <option value="700">前 700 名</option>
-      <option value="all">所有宝可梦</option>
-    </select>
+    <div class="top-options">
+      <label for="range">选择使用率范围：</label>
+      <select id="range" onchange="setTarget()">
+        <option value="50" selected>前 50 名</option>
+        <option value="100">前 100 名</option>
+        <option value="300">前 300 名</option>
+        <option value="700">前 700 名</option>
+        <option value="all">所有宝可梦</option>
+      </select>
 
-    <label for="guessLimit" style="margin-left: 20px;">猜测次数：</label>
-    <select id="guessLimit" onchange="updateGuessLimit()">
-      <option value="5">5次</option>
-      <option value="10" selected>10次</option>
-      <option value="15">15次</option>
-      <option value="20">20次</option>
-    </select>
+      <label for="guessLimit" style="margin-left: 20px;">猜测次数：</label>
+      <select id="guessLimit" onchange="updateGuessLimit()">
+        <option value="5">5次</option>
+        <option value="10" selected>10次</option>
+        <option value="15">15次</option>
+        <option value="20">20次</option>
+      </select>
 
-    <label for="questionBank" style="margin-left: 20px;">选择题库：</label>
-    <select id="questionBank" onchange="changeQuestionBank()">
-      <option value="pokemon_question_bank.json" selected>默认g9ou题库</option>
-      <option value="pokemon_question_bank_vgc.json">测试用vgc题库</option>
-      <option value="pokemon_question_bank_ndou.json">测试用ndou题库</option>
-    </select>
+      <label for="questionBank" style="margin-left: 20px;">选择题库：</label>
+      <select id="questionBank" onchange="changeQuestionBank()">
+        <option value="pokemon_question_bank.json" selected>默认g9ou题库</option>
+        <option value="pokemon_question_bank_vgc.json">朱紫vgc规则G题库</option>
+        <option value="pokemon_question_bank_ndou.json">全国图鉴ou题库</option>
+      </select>
+    </div>
 
     <div class="options">
       <label><input type="checkbox" id="showType" checked> 显示属性</label>
@@ -157,11 +295,16 @@
       <label><input type="checkbox" id="showStats" checked> 显示种族值</label>
     </div>
 
-    <div style="position: relative; margin-top: 10px;">
-      <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu 或 皮卡丘）" oninput="showSuggestions()">
-      <div id="suggestions" class="autocomplete-list"></div>
+    <div style="display: flex; justify-content: center; margin-top: 20px; position: relative;">
+      <div id="input-container" style="width: 70%; position: relative;">
+        <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu 或 皮卡丘）" oninput="showSuggestions()" style="width: 100%;">
+        <div id="suggestions" class="autocomplete-list" style="width: 100%;"></div>
+      </div>
     </div>
-    <button class="submit-btn" onclick="submitGuess()">猜！</button>
+    <div style="display: flex; justify-content: center; gap: 16px; margin-top: 20px;">
+      <button class="action-btn submit-btn" onclick="submitGuess()">猜！</button>
+      <button class="action-btn surrender-btn" onclick="surrender()">投降</button>
+    </div>
     <div id="result"></div>
     <div id="history"></div>
     <div id="reveal"></div>
@@ -382,6 +525,10 @@
     <button onclick="setTarget()" style="margin-top: 20px;">再来一次</button>
   `;
       modal.style.display = "flex";
+    }
+    function surrender() {
+      if (!target) return; // 防止异常
+      showModal(false); // 直接触发失败弹窗
     }
     window.onload = loadDictionaries;
   </script>
