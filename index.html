@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <title>宝可梦猜猜乐</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f2f2f2;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .card img {
+      max-height: 120px;
+      display: block;
+      margin: auto 10px auto 0;
+    }
+
+    .tag-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .tag-list li {
+      background: #e0e0e0;
+      display: inline-block;
+      padding: 5px 10px;
+      margin: 4px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .tag-list li.match {
+      background: #a3eaa3;
+      font-weight: bold;
+    }
+
+    .guess-input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    .submit-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .guess-entry {
+      border-top: 1px solid #ccc;
+      padding-top: 15px;
+      margin-top: 15px;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .tag-column {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-left: 10px;
+    }
+
+    .autocomplete-list {
+      margin-top: 5px;
+      background: white;
+      border: 1px solid #ccc;
+      max-height: 120px;
+      overflow-y: auto;
+      position: absolute;
+      z-index: 10;
+      width: calc(100% - 42px);
+    }
+
+    .autocomplete-item {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    .autocomplete-item:hover {
+      background-color: #eee;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .options {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>宝可梦猜猜乐</h2>
+
+    <label for="range">选择使用率范围：</label>
+    <select id="range" onchange="setTarget()">
+      <option value="50" selected>前 50 名</option>
+      <option value="100">前 100 名</option>
+      <option value="300">前 300 名</option>
+      <option value="700">前 700 名</option>
+      <option value="all">所有宝可梦</option>
+    </select>
+
+    <label for="guessLimit" style="margin-left: 20px;">猜测次数：</label>
+    <select id="guessLimit" onchange="updateGuessLimit()">
+      <option value="5">5次</option>
+      <option value="10" selected>10次</option>
+      <option value="15">15次</option>
+      <option value="20">20次</option>
+    </select>
+
+    <label for="questionBank" style="margin-left: 20px;">选择题库：</label>
+    <select id="questionBank" onchange="changeQuestionBank()">
+      <option value="pokemon_question_bank.json" selected>默认g9ou题库</option>
+      <option value="pokemon_question_bank_vgc.json">测试用vgc题库</option>
+      <option value="pokemon_question_bank_ndou.json">测试用ndou题库</option>
+    </select>
+
+    <div class="options">
+      <label><input type="checkbox" id="showType" checked> 显示属性</label>
+      <label><input type="checkbox" id="showEgg"> 显示蛋组</label>
+      <label><input type="checkbox" id="showStats" checked> 显示种族值</label>
+    </div>
+
+    <div style="position: relative; margin-top: 10px;">
+      <input id="guess" class="guess-input" placeholder="输入你猜的宝可梦名称（如 Pikachu 或 皮卡丘）" oninput="showSuggestions()">
+      <div id="suggestions" class="autocomplete-list"></div>
+    </div>
+    <button class="submit-btn" onclick="submitGuess()">猜！</button>
+    <div id="result"></div>
+    <div id="history"></div>
+    <div id="reveal"></div>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+
+  <script>
+    let fullData = [], pokemonData = [], target = null;
+    let guessCount = 0, maxGuesses = 10;
+    let currentBank = "pokemon_question_bank.json";
+    const guessInput = document.getElementById("guess");
+    const historyDiv = document.getElementById("history");
+    const revealDiv = document.getElementById("reveal");
+    const suggestionDiv = document.getElementById("suggestions");
+    const modal = document.getElementById("modal");
+    const modalContent = document.getElementById("modal-content");
+
+    let moveDict = {}, abilityDict = {}, nameDict = {}, itemDict = {};
+
+    function reverseDict(dict) {
+      const result = {};
+      for (const [cn, en] of Object.entries(dict)) result[en] = cn;
+      return result;
+    }
+
+    async function loadDictionaries() {
+      const moveRaw = await fetch("move_cn_en.json").then(res => res.json());
+      const abilityRaw = await fetch("ability_cn_en.json").then(res => res.json());
+      const nameRaw = await fetch("cn_en_dict.json").then(res => res.json());
+      const itemRaw = await fetch("item_cn_en.json").then(res => res.json());
+
+      const natureRaw = await fetch("nature_en_cn.json").then(res => res.json())
+
+      moveDict = reverseDict(moveRaw);
+      abilityDict = reverseDict(abilityRaw);
+      nameDict = reverseDict(nameRaw);
+      itemDict = itemRaw;
+
+      natureDict = natureRaw
+
+      await loadQuestionBank();
+    }
+
+    async function loadQuestionBank() {
+      const data = await fetch(currentBank).then(res => res.json());
+      fullData = data.sort((a, b) => b.usage - a.usage);
+      setTarget();
+    }
+
+    function changeQuestionBank() {
+      currentBank = document.getElementById("questionBank").value;
+      loadQuestionBank();
+    }
+
+    function updateGuessLimit() {
+      maxGuesses = parseInt(document.getElementById("guessLimit").value);
+      setTarget();
+    }
+
+    function setTarget() {
+      const range = document.getElementById("range").value;
+      pokemonData = (range === "all") ? fullData : fullData.slice(0, parseInt(range));
+      target = pokemonData[Math.floor(Math.random() * pokemonData.length)];
+      guessCount = 0;
+      historyDiv.innerHTML = "";
+      revealDiv.innerHTML = "";
+      modal.style.display = "none";
+      guessInput.value = "";
+    }
+
+    function normalize(str) {
+      return str.normalize("NFKD").replace(/–/g, "-").toLowerCase();
+    }
+
+    function showSuggestions() {
+      const input = normalize(guessInput.value.trim());
+      suggestionDiv.innerHTML = "";
+      if (input.length < 1) return;
+      const matches = fullData.filter(p => {
+        const en = normalize(p.name);
+        const cn = normalize(nameDict[p.name] || "");
+        return en.includes(input) || cn.includes(input);
+      }).slice(0, 6);
+
+      for (const p of matches) {
+        const display = nameDict[p.name] ? `${nameDict[p.name]} (${p.name})` : p.name;
+        const item = document.createElement("div");
+        item.className = "autocomplete-item";
+        item.textContent = display;
+        item.onclick = () => {
+          guessInput.value = p.name;
+          suggestionDiv.innerHTML = "";
+        };
+        suggestionDiv.appendChild(item);
+      }
+    }
+
+    const prefixMap = {
+      "Move": "招式", "Ability": "特性", "Item": "道具", "Tera": "太晶属性",
+      "Teammate": "队友", "Counter": "克制", "Spread": "性格", "Type": "属性"
+    };
+
+    const teraTranslation = {
+      "Water": "水", "Fire": "火", "Grass": "草", "Ghost": "幽灵", "Normal": "一般",
+      "Dark": "恶", "Fairy": "妖精", "Steel": "钢", "Electric": "电", "Flying": "飞行",
+      "Ground": "地面", "Fighting": "格斗", "Psychic": "超能力", "Bug": "虫", "Rock": "岩石",
+      "Poison": "毒", "Ice": "冰", "Dragon": "龙"
+    };
+
+    const typeTranslation = teraTranslation;
+
+    function translate(tag) {
+      const parts = tag.split(": ");
+      if (parts.length < 2) return tag;
+      const [prefix, value] = parts;
+      let translated = value;
+      if (prefix === "Move" && moveDict[value]) translated = moveDict[value];
+      if (prefix === "Ability" && abilityDict[value]) translated = abilityDict[value];
+      if (prefix === "Teammate" && nameDict[value]) translated = nameDict[value];
+      if (prefix === "Counter" && nameDict[value]) translated = nameDict[value];
+      if (prefix === "Item" && itemDict[value]) translated = itemDict[value];
+      if (prefix === "Tera" && teraTranslation[value]) translated = teraTranslation[value];
+      if (prefix === "Spread" && natureDict[value]) translated = natureDict[value];
+      if (prefix === "Type") translated = typeTranslation[value] || value;
+      if (prefix.startsWith("Base")) return tag.replace("Base", "种族值：");
+      return `${prefixMap[prefix] || prefix}：${translated}`;
+    }
+
+    function translateList(tags, matcher) {
+      const showType = document.getElementById("showType").checked;
+      const showEgg = document.getElementById("showEgg").checked;
+      const showStats = document.getElementById("showStats").checked;
+
+      return tags
+        .filter(tag => {
+          if (tag.startsWith("Type:") && !showType) return false;
+          if (tag.startsWith("Egg Group:") && !showEgg) return false;
+          if (tag.startsWith("Base") && !showStats) return false;
+          return true;
+        })
+        .map(tag => `<li class="${matcher(tag) ? 'match' : ''}">${translate(tag)}</li>`)
+        .join('');
+    }
+
+    function submitGuess() {
+      if (guessCount >= maxGuesses) return;
+      const guessName = guessInput.value.trim();
+      const guess = fullData.find(p => normalize(p.name) === normalize(guessName));
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = '';
+
+      if (!guess) {
+        resultDiv.innerHTML = `<p style='color:red'>未找到：${guessName}</p>`;
+        return;
+      }
+
+      const targetTags = new Set(target.tags);
+      const isMatch = tag => targetTags.has(tag);
+
+      const types = guess.tags.filter(tag => tag.startsWith('Type:'));
+      const stats = guess.tags.filter(tag => tag.startsWith('Base'));
+      const eggs = guess.tags.filter(tag => tag.startsWith('Egg Group'));
+      const others = guess.tags.filter(tag => !tag.startsWith('Type:') && !tag.startsWith('Base') && !tag.startsWith('Egg Group'));
+
+      const usageComparison = target.usage > guess.usage ? '更高' : '更低';
+
+      const guessHtml = `
+    <div class="guess-entry">
+      <img src="${guess.sprite_small}" alt="${guess.name}">
+      <div class="tag-column">
+        <h3>${guess.name}</h3>
+        <p>使用率：${guess.usage}%（目标宝可梦使用率${usageComparison}）</p>
+        ${types.length > 0 ? `<ul class='tag-list' style="margin-top:8px;">${translateList(types, isMatch)}</ul>` : ''}
+        ${stats.length > 0 ? `<ul class='tag-list' style="margin-top:8px;">${translateList(stats, isMatch)}</ul>` : ''}
+        ${eggs.length > 0 ? `<ul class='tag-list' style="margin-top:8px;">${translateList(eggs, isMatch)}</ul>` : ''}
+        ${others.length > 0 ? `<ul class='tag-list' style="margin-top:8px;">${translateList(others, isMatch)}</ul>` : ''}
+      </div>
+    </div>
+  `;
+      historyDiv.innerHTML += guessHtml;
+      guessCount++;
+
+      if (normalize(guess.name) === normalize(target.name)) {
+        showModal(true);
+      } else if (guessCount >= maxGuesses) {
+        showModal(false);
+      }
+    }
+
+    function showModal(isCorrect) {
+      const title = isCorrect
+        ? `🎉 恭喜你猜对了！答案是 ${target.name}`
+        : `❌ 很遗憾，你未猜中，答案是 ${target.name}`;
+
+      const types = target.tags.filter(tag => tag.startsWith('Type:'));
+      const stats = target.tags.filter(tag => tag.startsWith('Base'));
+      const eggs = target.tags.filter(tag => tag.startsWith('Egg Group'));
+      const others = target.tags.filter(tag => !tag.startsWith('Type:') && !tag.startsWith('Base') && !tag.startsWith('Egg Group'));
+
+      const renderTagList = (tags) => {
+        return tags.map(tag => {
+          return `<li class="${isCorrect ? 'match' : ''}">${translate(tag)}</li>`;
+        }).join('');
+      };
+
+      modalContent.innerHTML = `
+    <h2>${title}</h2>
+    <img src="${target.sprite_large}" alt="${target.name}" style="max-height: 120px;">
+    <div style="margin-top: 10px;">
+      ${types.length > 0 ? `<ul class='tag-list' style="margin-top:8px; justify-content:center;">${renderTagList(types)}</ul>` : ''}
+      ${stats.length > 0 ? `<ul class='tag-list' style="margin-top:8px; justify-content:center;">${renderTagList(stats)}</ul>` : ''}
+      ${eggs.length > 0 ? `<ul class='tag-list' style="margin-top:8px; justify-content:center;">${renderTagList(eggs)}</ul>` : ''}
+      ${others.length > 0 ? `<ul class='tag-list' style="margin-top:8px; justify-content:center;">${renderTagList(others)}</ul>` : ''}
+    </div>
+    <button onclick="setTarget()" style="margin-top: 20px;">再来一次</button>
+  `;
+      modal.style.display = "flex";
+    }
+    window.onload = loadDictionaries;
+  </script>
+</body>
+
+</html>
